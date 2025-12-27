@@ -125,7 +125,7 @@ app.delete("/sellingRate/customer", async (req, res) => {
 });
 
 //  this is test comment 
-
+//  this is new test
 //  deleting selling rate api date wise 
 app.delete("/sellingRate/date", async (req, res) => {
   const { date } = req.body;

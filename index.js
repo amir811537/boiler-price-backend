@@ -33,6 +33,91 @@ async function run() {
     // await client.connect();
 
     const sellingRateCollection=client.db('productDB').collection('sellingRate');
+    const customersCollection=client.db('productDB').collection('customers');
+
+
+
+// ADD CUSTOMER
+app.post("/customers", async (req, res) => {
+  const { name } = req.body;
+
+  if (!name) {
+    return res.status(400).send({ message: "Customer name required" });
+  }
+
+  // prevent duplicate
+  const exists = await customersCollection.findOne({ name });
+  if (exists) {
+    return res.status(409).send({ message: "Customer already exists" });
+  }
+
+  const customer = {
+    name,
+    createdAt: new Date(),
+  };
+
+  const result = await customersCollection.insertOne(customer);
+
+  res.send({
+    success: true,
+    message: "Customer added successfully",
+    result,
+  });
+});
+
+// GET ALL CUSTOMERS
+app.get("/customers", async (req, res) => {
+  const customers = await customersCollection
+    .find({})
+    .sort({ createdAt: -1 })
+    .toArray();
+
+  res.send(customers);
+});
+
+
+// DELETE CUSTOMER (also remove from sellingRate)
+// DELETE CUSTOMER (by ID) + remove from sellingRate
+app.delete("/customers/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).send({ message: "Customer id required" });
+    }
+
+    // find customer first
+    const customer = await customersCollection.findOne({
+      _id: new ObjectId(id),
+    });
+
+    if (!customer) {
+      return res.status(404).send({ message: "Customer not found" });
+    }
+
+    // delete customer
+    const deleteCustomer = await customersCollection.deleteOne({
+      _id: new ObjectId(id),
+    });
+
+    // also remove from all sellingRate dates
+    await sellingRateCollection.updateMany(
+      {},
+      { $pull: { rates: { customerName: customer.name } } }
+    );
+
+    res.send({
+      success: true,
+      message: "Customer deleted successfully",
+      deleteCustomer,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).send({ message: "Failed to delete customer" });
+  }
+});
+
+
 
 
 //  posting selling rate api

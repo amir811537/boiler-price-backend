@@ -158,28 +158,58 @@ app.get("/sellingRate", async (req, res) => {
 
 // updating selling rate api
 app.patch("/sellingRate", async (req, res) => {
-  const { date, customerName, proposalPrice, actualSellingPrice } = req.body;
+  try {
+    const {
+      date,
+      customerName,
+      proposalPrice,
+      actualSellingPrice,
+      piece
+    } = req.body;
 
-  if (!date || !customerName) {
-    return res.status(400).send({ message: "date and customerName required" });
+    if (!date || !customerName) {
+      return res.status(400).send({ message: "date & customerName required" });
+    }
+
+    const updateFields = {};
+
+    // ✅ proposal
+    if (proposalPrice) {
+      updateFields["rates.$.proposalPrice"] = proposalPrice;
+    }
+
+    // ✅ actual selling
+    if (actualSellingPrice) {
+      updateFields["rates.$.actualSellingPrice"] = actualSellingPrice;
+    }
+
+    // ✅ 🔥 PIECE (THIS WAS MISSING)
+    if (piece) {
+      updateFields["rates.$.piece"] = {
+        boilerBig: Number(piece.boilerBig || 0),
+        boilerSmall: Number(piece.boilerSmall || 0),
+      };
+    }
+
+    const result = await sellingRateCollection.updateOne(
+      {
+        date,
+        "rates.customerName": customerName
+      },
+      {
+        $set: updateFields
+      }
+    );
+
+    res.send({
+      success: true,
+      modifiedCount: result.modifiedCount
+    });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).send({ message: "Update failed" });
   }
-
-  const update = {};
-
-  if (proposalPrice) {
-    update["rates.$.proposalPrice"] = proposalPrice;
-  }
-
-  if (actualSellingPrice) {
-    update["rates.$.actualSellingPrice"] = actualSellingPrice;
-  }
-
-  const result = await sellingRateCollection.updateOne(
-    { date, "rates.customerName": customerName },
-    { $set: update }
-  );
-
-  res.send(result);
 });
 
 
